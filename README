@@ -1,0 +1,35 @@
+simplergeo.py is a really simple Python wrapper around the SimpleGeo API. It is
+derived from the "python-simplegeo" library but made ... well, simpler.
+
+[ PROPER DOCUMENTATION STILL NEEDS TO BE WRITTEN BUT HERE'S THE QUICK AND DIRTY ]
+
+	import simplergeo
+	import Geohash
+
+	# http://help.simplegeo.com/faqs/authentication/where-do-i-find-my-oauth-token-and-secret
+	# http://simplegeo.com/account/settings/
+
+	token='YER_OAUTH_TOKEN'
+	secret='YER_OAUTH_SECRET'
+	layer='com.example.layer'
+
+	lat = 37.764845
+	lon = -122.419857
+	uid = Geohash.encode(lat, lon)
+
+	geo = simplergeo.simplergeo(token=token, secret=secret)
+
+	req = '/records/%s/%s/history.json' % (layer, uid)
+	rsp = geo.execute_request_simple(req)
+
+	if rsp['stat'] == 'ok':
+		print rsp['geometries']
+
+	# Or, if you want to poke around with the raw bits
+	# sent back via the API you can also say:
+	#
+	# head, body = geo.execute_request(req, foo=bar)
+
+SEE ALSO
+
+http://github.com/simplegeo/python-simplegeo/
