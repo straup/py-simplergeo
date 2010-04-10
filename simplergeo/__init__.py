@@ -75,9 +75,7 @@ class simplergeo:
 
     def execute_request_simple(self, endpoint, **kwargs):
 
-        rsp = self.execute_request(endpoint, **kwargs)
-
-        head, body = rsp
+        head, body = self.execute_request(endpoint, **kwargs)
 
         if not self.is_success(head):
             return { 'stat' : 'fail', 'error' : head['status'], 'message' : body }
