@@ -28,7 +28,7 @@ derived from the "python-simplegeo" library but made ... well, simpler.
 	# Or, if you want to poke around with the raw bits
 	# sent back via the API you can also say:
 	#
-	# head, body = geo.execute_request(req, foo=bar)
+	# head, body = geo.execute_request(req, method='POST', foo=bar)
 
 SEE ALSO
 
