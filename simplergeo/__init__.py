@@ -2,6 +2,7 @@ import urllib
 import oauth2 as oauth
 from httplib2 import Http
 from urlparse import urljoin
+import logging
 
 try:
     from hashlib import md5
@@ -35,6 +36,11 @@ class simplergeo:
         self.uri = "http://%s:%s" % (host, port)
         self.http = Http()
 
+        if kwargs.get('debug', False):
+            logging.basicConfig(level=logging.DEBUG)
+        else:
+            logging.basicConfig(level=logging.INFO)
+
     def is_success(self, head):
 
         status = head.get('status', None)
@@ -65,13 +71,21 @@ class simplergeo:
             else:
                 body = args
 
+        logging.debug(endpoint)
+        logging.debug(body)
+
         request = oauth.Request.from_consumer_and_token(self.consumer, http_method=method, http_url=endpoint, parameters=params)
         request.sign_request(self.signature, self.consumer, None)
 
         headers = request.to_header(self.realm)
         headers['User-Agent'] = 'SimplerGeo v%s' % self.api_version
 
-        return self.http.request(endpoint, method, body=body, headers=headers)
+        head, body = self.http.request(endpoint, method, body=body, headers=headers)
+
+        logging.debug(head)
+        logging.debug(body)
+
+        return (head, body)
 
     def execute_request_simple(self, endpoint, **kwargs):
 
@@ -88,6 +102,30 @@ class simplergeo:
         body['stat'] = 'ok'
 
         return body
+
+class cli (simplergeo):
+
+    def __init__(self, **kwargs):
+
+        import optparse
+        import ConfigParser
+
+        parser = optparse.OptionParser()
+
+        parser.add_option('-c', '--config', dest='config',
+                          help='Path to your config file',
+                          action='store')
+
+        options, args = parser.parse_args()
+
+        cfg = ConfigParser.ConfigParser()
+        cfg.read(options.config)
+
+        kwargs['token'] = cfg.get('simplegeo', 'oauth_token')
+        kwargs['secret'] = cfg.get('simplegeo', 'oauth_secret')
+
+        simplergeo.__init__(self, **kwargs)
+        self.cfg = cfg
 
 if __name__ == '__main__' :
 
