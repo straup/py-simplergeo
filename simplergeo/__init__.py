@@ -3,6 +3,7 @@ import httplib
 from urlparse import urljoin
 import oauth2 as oauth
 import logging
+import time
 
 try:
     from hashlib import md5
@@ -73,14 +74,15 @@ class simplergeo:
 
         oauth_endpoint = self.uri + endpoint
 
-        logging.debug('%s %s' % (method, endpoint))
-        logging.debug(oauth_endpoint)
-
         request = oauth.Request.from_consumer_and_token(self.consumer, http_method=method, http_url=oauth_endpoint, parameters=params)
         request.sign_request(self.signature, self.consumer, None)
 
         headers = request.to_header(self.realm)
         headers['User-Agent'] = 'SimplerGeo v%s' % self.api_version
+
+        logging.debug('%s %s' % (method, endpoint))
+        logging.debug(headers)
+        logging.debug(body)
 
         try:
             self.http.request(method, endpoint, body, headers)
@@ -117,6 +119,51 @@ class simplergeo:
 
         return body
 
+# helper class for working with layers specifically
+
+class layer (simplergeo):
+
+    def __init__ (self, **kwargs):
+        self.layer = kwargs['layer']
+        simplergeo.__init__(self, **kwargs)
+
+    def add_point(self, **kwargs):
+
+        created = int(time.time())
+
+        if kwargs.get('created', False):
+            created = kwargs['created']
+        else:
+            created = int(time.time())
+
+        args = {
+            'geometry' : {
+                'type' : 'Point',
+                'coordinates' : [ kwargs['lon'], kwargs['lat'] ],
+                },
+            'created' : created,
+            'properties' : {},
+            'type' : 'Feature',
+            }
+
+        if kwargs.get('properties', False):
+            args['properties'] = kwargs['properties']
+
+            if not args['properties'].get('type', False):
+                args['properties']['type'] = 'object'
+
+        req = '/records/%s/%s.json' % (self.layer, kwargs['id'])
+
+        return self.execute_request_simple(req, method='PUT', args=json.dumps(args))
+
+    def list_points(self, lat=0, lon=0):
+
+        req = 'records/%s/nearby/%s,%s.json' % (self.layer, lat, lon)
+        return self.execute_request_simple(req)
+
+# helper class for loading simplegeo configs from a config
+# file / command line interface
+
 class cli (simplergeo):
 
     def __init__(self, **kwargs):
@@ -144,22 +191,36 @@ class cli (simplergeo):
 if __name__ == '__main__' :
 
     import Geohash
+    import time
+    import json
 
-    # http://help.simplegeo.com/faqs/authentication/where-do-i-find-my-oauth-token-and-secret
-    # http://simplegeo.com/account/settings/
-
-    token='YER_OAUTH_TOKEN'
-    secret='YER_OAUTH_SECRET'
-    layer='com.example.layer'
+    token='YER_SIMPLEGEO_TOKEN'
+    secret='YER_SIMPLEGEO_SECRET'
+    layer_name='YER_SIMPLEGEO_LAYER'
 
     lat = 37.764845
     lon = -122.419857
     uid = Geohash.encode(lat, lon)
 
-    geo = simplergeo(token=token, secret=secret)
+    args = {
+        'geometry' : {
+            'type' : 'Point',
+            'coordinates' : [ lon, lat ],
+            },
+        'created' : int(time.time()),
+        'properties' : {},
+        'type' : 'Feature',
+        }
 
-    req = '/records/%s/%s/history.json' % (layer, uid)
-    rsp = geo.execute_request_simple(req)
+    geo = simplegeo(token=token, secret=secret, debug=True)
 
-    if rsp['stat']:
-        print rsp['geometries']
+    req = '/records/%s/%s.json' % (layer_name, uid)
+    rsp = geo.execute_request_simple(req, method='PUT', args=json.dumps(args))
+    print rsp
+
+    # or you can just use the handy (but still incomplete)
+    # 'layer' class for working with...well, layers
+
+    lyr = layer(token=token, secret=secret, layer=layer_name, debug=True)
+    rsp = lyr.add_point(id=uid, lat=lat, lon=lon)
+    print rsp
