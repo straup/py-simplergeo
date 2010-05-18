@@ -1,7 +1,7 @@
 import urllib
-import oauth2 as oauth
-from httplib2 import Http
+import httplib
 from urlparse import urljoin
+import oauth2 as oauth
 import logging
 
 try:
@@ -34,7 +34,7 @@ class simplergeo:
         self.api_version = api_version
         self.signature = oauth.SignatureMethod_HMAC_SHA1()
         self.uri = "http://%s:%s" % (host, port)
-        self.http = Http()
+        self.http = httplib.HTTPConnection(self.host, self.port)
 
         if kwargs.get('debug', False):
             logging.basicConfig(level=logging.DEBUG)
@@ -61,7 +61,7 @@ class simplergeo:
         if not endpoint.startswith('/'):
             endpoint = '/' + endpoint
 
-        endpoint = urljoin(self.uri, self.api_version) + endpoint
+        endpoint = '/' + self.api_version + endpoint
 
         if method == "GET" and isinstance(args, dict):
             endpoint = endpoint + '?' + urllib.urlencode(args)
@@ -71,16 +71,30 @@ class simplergeo:
             else:
                 body = args
 
-        logging.debug(endpoint)
-        logging.debug(body)
+        oauth_endpoint = self.uri + endpoint
 
-        request = oauth.Request.from_consumer_and_token(self.consumer, http_method=method, http_url=endpoint, parameters=params)
+        logging.debug('%s %s' % (method, endpoint))
+        logging.debug(oauth_endpoint)
+
+        request = oauth.Request.from_consumer_and_token(self.consumer, http_method=method, http_url=oauth_endpoint, parameters=params)
         request.sign_request(self.signature, self.consumer, None)
 
         headers = request.to_header(self.realm)
         headers['User-Agent'] = 'SimplerGeo v%s' % self.api_version
 
-        head, body = self.http.request(endpoint, method, body=body, headers=headers)
+        try:
+            self.http.request(method, endpoint, body, headers)
+        except Exception, e:
+            logging.error('HTTP request (%s) failed: %s' % (endpoint, e))
+            return { 'status' : '999' }, str(e)
+
+        rsp = self.http.getresponse()
+
+        body = rsp.read()
+        head = { 'status' : str(rsp.status) }
+
+        for k,v in rsp.getheaders():
+            head[k] = v
 
         logging.debug(head)
         logging.debug(body)
