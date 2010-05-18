@@ -86,11 +86,10 @@ class simplergeo:
 
         try:
             self.http.request(method, endpoint, body, headers)
+            rsp = self.http.getresponse()
         except Exception, e:
             logging.error('HTTP request (%s) failed: %s' % (endpoint, e))
             return { 'status' : '999' }, str(e)
-
-        rsp = self.http.getresponse()
 
         body = rsp.read()
         head = { 'status' : str(rsp.status) }
